@@ -1,0 +1,60 @@
+# 519021910095 QianyunGuo
+# 519021910575 MuchenPan
+# In this part we are asked to write a Y86 program that recursively sums the 
+# elements of a linked list. 
+
+# The program also includes setting up the stack structure, invoking functions 
+# and then halt. Similarly, We use register %eax to save the sum of linked list 
+# elements, register %edi to point to the current element and register %ebx to 
+# temporarily store the read element value, and how to fetch the correct element 
+# in stack is the same as the previous sum.ys program. 
+
+# Specially, to implement recursion, we call rsum_list in the rsum_list function. 
+# The key is to use popl and pushl instruction to save callee-saved register %ebx. 
+# Every time in rsum_list function, we need push the read value into stack and 
+# after the current function calling finished, pop the value and add it with the 
+# return value of the called function. The result is the return value of this 
+# function.
+# The code of rsum.ys is as bellow.
+
+#Execution begins at address 0
+    .pos 0
+    irmovl stack, %esp      # Set up stack pointer
+    call main               # Execute main program
+    halt                    # Terminate program
+
+# Sample linked list
+.align 4
+ele1:
+	.long 0x00a
+	.long ele2
+ele2:
+	.long 0x0b0
+	.long ele3
+ele3:
+	.long 0xc00
+	.long 0
+
+main:
+	irmovl ele1,%edi
+	call rsum_list
+	ret
+
+# long rsum_list(list_ptr ls)
+# ls in %edi
+rsum_list:
+	xorl   %eax,%eax	# Set return value to 0
+	andl   %edi,%edi	# Set CC
+	je     return		# if 0, return
+	pushl  %ebx		# Save callee-saved register
+	mrmovl (%edi),%ebx	# get ls
+	mrmovl 4(%edi),%edi	# next ls
+	call   rsum_list
+	addl   %ebx,%eax	# add to rsum
+	popl   %ebx		# Restore callee-saved register
+return:
+	ret
+
+# Stack starts here and grows to lower addresses
+	.pos 0x400
+stack:

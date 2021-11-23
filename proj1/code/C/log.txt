@@ -1,0 +1,5 @@
+iaddl 			13.96
+iaddl+loop4 		11.28
+iaddl+loop10 		11.21
+iaddl+loop10+2reg		10.51
+iaddl+loop10+2reg+loop4	10.16

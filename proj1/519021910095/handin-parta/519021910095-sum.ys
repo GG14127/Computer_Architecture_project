@@ -1,0 +1,58 @@
+# 519021910095 QianyunGuo
+# 519021910575 MuchenPan
+#  In this part we should write a Y86 program that iteratively sums the elements 
+#  of a linked list. 
+
+#  The code of sum.ys is as bellow. The program includes setting up the stack 
+#  structure, invoking functions and then halt. We use register %eax to save the 
+#  sum of linked list elements, register %edi to point to the current element and 
+#  register %ecx to temporarily store the read element value. When the main 
+#  function is called, we initialize the %edi register and then call function 
+#  sum_list. 
+
+#  In every cycle in the loop of sum_list, we load the value of elements from 
+#  memory according to the %edi register, add the value into %eax register and 
+#  then update %edi register. The test part is to determine when to stop loop. If 
+#  loop stops, the function returns.
+
+# Execution begins at address 0
+	.pos 0
+	irmovl stack, %esp      # Set up stack pointer
+	call main               # Execute main program
+	halt                    # Terminate program
+
+# Sample linked list
+	.align 4
+ele1:
+    .long 0x00a
+    .long ele2
+ele2:
+    .long 0x0b0
+    .long ele3
+ele3:
+    .long 0xc00
+    .long 0
+
+main:
+    irmovl ele1,%edi
+    call sum_list
+    ret
+
+# long sum_list(list_ptr ls)
+# ls in %edi
+sum_list:
+    xorl   %eax,%eax    # val = 0
+    andl   %edi,%edi    # Set CC
+    jmp    test		# Go to test
+loop:
+    mrmovl (%edi), %ecx	#get ls
+    addl   %ecx, %eax	#add to sum
+    mrmovl 4(%edi),%edi	#ls next
+    andl   %edi,%edi	#set CC
+test:
+    jne    loop		#stop when 0
+    ret			#return
+
+# Stack starts here and grows to lower addresses
+    .pos 0x400
+stack:

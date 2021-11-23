@@ -1,0 +1,185 @@
+#/* $begin ncopy-ys */
+##################################################################
+# ncopy.ys - Copy a src block of len ints to dst.
+# Return the number of positive ints (>0) contained in src.
+#
+# 519021910095 QianyunGuo
+# 519021910575 MuchenPan
+#
+#  As our optimization steps in the Analysis section，our modifications of ncopy.ys are as follows.
+
+#######Add iaddl###################################
+#  Use iaddl to avoid using a register to save a constant while changing the value in a register like count++, len--, src++ and so on.
+
+#######Loop unrolling. Combine 10-way and 4-way##############
+#  First, we enter 10-way loop unrolling part.
+#  We test whether len (%edx) is less than 10
+#  If so, go to Remainloop part which is 4-way loop unrolling
+#  Otherwise, we loop 10 times and in the end we enter Npos10 part in which we update the data of src (%ebx) and dst (%ecx) and test whether len (%edx) is less than 10 again to choose whether take another 10-way loop.
+
+#  The 4-way loop unrolling in the Remainloop part is the same as 10-way loop.
+#  We test whether len (%edx) is less than 4
+#  If so, go to Remain part which is traditional loop part.
+#  Otherwise, we loop 4 times and in the end we enter Npos4 part in which we update the data of src (%ebx) and dst (%ecx) and test whether len (%edx) is less than 4 again to choose whether take another 4-way loop.
+
+#  Last part is Remain, a traditional loop part. We update the data of src (%ebx) and dst (%ecx) and test len (%edx) in every loop.
+
+#######Increase the Number of Registers#####################
+#  Two registers (%esi and %edi) are used alternately for each loop section. 
+#  In every loop, one store the current val and the other read the val we need to test in the next loop. Also, we changed instruction order when necessary.
+
+##################################################################
+# Do not modify this portion
+# Function prologue.
+ncopy:	pushl %ebp		# Save old frame pointer
+	rrmovl %esp,%ebp	# Set up new frame pointer
+	pushl %esi		# Save callee-save regs
+	pushl %ebx
+	pushl %edi
+	mrmovl 8(%ebp),%ebx	# src
+	mrmovl 16(%ebp),%edx	# len
+	mrmovl 12(%ebp),%ecx	# dst
+
+##################################################################
+# You can modify this portion
+	# Loop header
+	iaddl $-10, %edx	# len -=10;
+	xorl %eax,%eax		# count = 0;
+	andl %edx,%edx		# len <= 0?
+	jle Remainloop		# if len <= 0, goto Remainloop:
+
+Loop0:	
+	mrmovl (%ebx), %esi	# read val from src
+	mrmovl 4(%ebx),%edi	# read next val from next src
+	andl %esi, %esi		# current val <= 0?
+	rmmovl %esi, (%ecx)	# store current val to dst
+	jle Loop1		# if so, goto Loop1:
+	iaddl $1, %eax		# count++
+Loop1:	
+	mrmovl 8(%ebx), %esi	# read next val from next src
+	andl %edi, %edi		# current val <= 0?
+	rmmovl %edi, 4(%ecx)	# store current val to dst
+	jle Loop2		# if so, goto Loop2:
+	iaddl $1, %eax		# count++
+Loop2:	
+	mrmovl 12(%ebx), %edi	# read next val from next src
+	andl %esi, %esi		# current val <= 0?
+	rmmovl %esi, 8(%ecx)	# store current val to dst
+	jle Loop3		# if so, goto Loop3:
+	iaddl $1, %eax		# count++
+Loop3:	
+	mrmovl 16(%ebx), %esi	# read next val from next src
+	andl %edi, %edi		# current val <= 0?
+	rmmovl %edi, 12(%ecx)	# store current val to dst
+	jle Loop4		# if so, goto Loop4:
+	iaddl $1, %eax		# count++
+Loop4:	
+	mrmovl 20(%ebx), %edi	# read next val from next src
+	andl %esi, %esi		# current val <= 0?
+	rmmovl %esi, 16(%ecx)	# store current val to dst
+	jle Loop5		# if so, goto Loop5:
+	iaddl $1, %eax		# count++
+Loop5:	
+	mrmovl 24(%ebx), %esi	# read next val from next src
+	andl %edi, %edi		# current val <= 0?
+	rmmovl %edi, 20(%ecx)	# store current val to dst
+	jle Loop6		# if so, goto Loop6:
+	iaddl $1, %eax		# count++
+Loop6:	
+	mrmovl 28(%ebx), %edi	# read next val from next src
+	andl %esi, %esi		#current val <= 0?
+	rmmovl %esi, 24(%ecx)	# store current val to dst
+	jle Loop7		# if so, goto Loop7:
+	iaddl $1, %eax		# count++
+Loop7:	
+	mrmovl 32(%ebx), %esi	# read next val from next src
+	andl %edi, %edi		# current val <= 0?
+	rmmovl %edi, 28(%ecx)	# store current val to dst
+	jle Loop8		# if so, goto Loop8:
+	iaddl $1, %eax		# count++
+Loop8:	
+	mrmovl 36(%ebx), %edi	# read next val from next src
+	andl %esi, %esi		# current val <= 0?
+	rmmovl %esi, 32(%ecx)	# store current val to dst
+	jle Loop9		# if so, goto Loop9:
+	iaddl $1, %eax		# count++
+Loop9:	
+	andl %edi, %edi		# val <= 0?
+	rmmovl %edi, 36(%ecx)	# store current val to dst
+	jle Npos10		# if so, goto Npos10:
+	iaddl $1, %eax		# count++
+Npos10:	
+	iaddl $-10, %edx	# len-10
+	iaddl $40, %ebx		# src+10
+	iaddl $40, %ecx		# dst+10
+	andl %edx,%edx		# len > 0?
+	jg Loop0		# if so, goto Loop0:
+#######################
+Remainloop:
+	iaddl $6, %edx		# len +=6;
+	andl %edx,%edx		# len <= 0?
+	jle Remain		# if so, goto Remain:
+
+Loop40:	
+	mrmovl (%ebx), %esi	# read val from src...
+	mrmovl 4(%ebx),%edi	# read next val from next src
+	andl %esi, %esi		# val <= 0?
+	rmmovl %esi, (%ecx)	# store current val to dst
+	jle Loop41		# if so, goto Loop41:
+	iaddl $1, %eax		# count++
+Loop41:	
+	mrmovl 8(%ebx), %esi	# read next val from next src
+	andl %edi, %edi		# val <= 0?
+	rmmovl %edi, 4(%ecx)	# store current val to dst
+	jle Loop42		# if so, goto Loop42:
+	iaddl $1, %eax		# count++
+Loop42:	
+	mrmovl 12(%ebx), %edi	# read next val from next src
+	andl %esi, %esi		# val <= 0?
+	rmmovl %esi, 8(%ecx)	# store current val to dst
+	jle Loop43		# if so, goto Loop43:
+	iaddl $1, %eax		# count++
+Loop43:	
+	andl %edi, %edi		# val <= 0?
+	rmmovl %edi, 12(%ecx)	# store current val to dst
+	jle Npos4		# if so, goto Npos4:
+	iaddl $1, %eax		# count++
+Npos4:	
+	iaddl $-4, %edx		# len-=4;
+	iaddl $16, %ebx		# src+=4;
+	iaddl $16, %ecx		# dst+=4;
+	andl %edx,%edx		# len > 0?
+	jg Loop40		# if so, goto Loop40:
+
+Remain:
+	iaddl $4, %edx		# len+=4;
+	andl %edx, %edx		# len <= 0?
+	jle Done		# if so, goto Done:
+Loop:
+	mrmovl (%ebx), %esi	# read val from src...
+	rmmovl %esi, (%ecx)	# ...and store it to dst
+	andl %esi, %esi		# val <= 0?
+	jle RemNpos		# if so, goto RemNpos:
+	iaddl $1, %eax		# count++
+RemNpos:
+	iaddl $-1, %edx		# len--
+	iaddl $4, %ebx		# src++
+	iaddl $4, %ecx		# dst++
+	andl %edx,%edx		# len > 0?
+	jg Loop			# if so, goto Loop:
+
+	
+##################################################################
+# Do not modify the following section of code
+# Function epilogue.
+Done:
+	popl %edi               # Restore callee-save registers
+	popl %ebx
+	popl %esi
+	rrmovl %ebp, %esp
+	popl %ebp
+	ret
+##################################################################
+# Keep the following label at the end of your function
+End:
+#/* $end ncopy-ys */

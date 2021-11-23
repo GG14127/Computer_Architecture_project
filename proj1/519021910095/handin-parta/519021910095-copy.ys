@@ -1,0 +1,72 @@
+# 519021910095 QianyunGuo
+# 519021910575 MuchenPan
+# In this part we are supposed to write a Y86 program that copies a block of 
+# words from on part of memory to another which is not overlapped with the 
+# former part or memory. Meanwhile, compute the checksum (Xor) of all word 
+# copied. 
+
+# The program also includes setting up the stack structure, invoking functions 
+# and then halt. We use register %eax to save the checksum of copied words, 
+# use register %edi and %esi to point to the source block and the destination 
+# block respectively, and register %ebp to temporarily store the read value 
+# from source block.
+
+# In the loop of copy_block, we fetch word from source block according to 
+# register %edi and store the word into %ebp. Then update the value of %edi to 
+# next word in source block. Afterwards, we move the value in %ebp to the 
+# destination block in memory according to %esi and then update the %esi to 
+# the next. What’s more, we calculate the checksum in the loop as well. 
+
+# It is worth mentioning that Y86 instruction set do not support the direct 
+# calculation between immediate and register. Thus, in program we use irmovl 
+# instruction to save constant into register %ebx and %ecx, then calculate 
+# between two reigsters.
+
+# Execution begins at address 0
+    .pos 0
+    irmovl stack, %esp      # Set up stack pointer
+    call main               # Execute main program
+    halt                    # Terminate program
+
+.align 4
+# Source block
+src:
+    .long 0x00a
+    .long 0x0b0
+    .long 0xc00
+
+# Destination block
+dest:
+    .long 0x111
+    .long 0x222
+    .long 0x333
+
+main:
+    irmovl src,%edi
+    irmovl dest,%esi
+    irmovl $3,%edx
+    call copy_block
+    ret
+
+#long copy_block(long *src, long *dest, long len)
+# src in %edi, dest in %esi, len in %edx
+copy_block:
+    irmovl $4,%ebx     # Constant 4
+    irmovl $1,%ecx     # Constant 1
+    xorl   %eax,%eax   # Set result = 0
+    andl   %edx,%edx   # Set CC
+    jmp    test
+loop:
+    mrmovl (%edi),%ebp	# Get val = *src
+    addl   %ebx,%edi	# src++
+    rmmovl %ebp,(%esi)	# *dst = *src
+    addl   %ebx,%esi	# dst++
+    xorl   %ebp,%eax	# result += val
+    subl   %ecx,%edx	# len--, Set CC
+test:
+    jne    loop		# Stop when 0
+    ret
+
+# Stack starts here and grows to lower addresses
+    .pos 0x400
+stack:
